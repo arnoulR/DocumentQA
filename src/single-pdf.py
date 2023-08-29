@@ -4,8 +4,14 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.chains import ConversationalRetrievalChain
 from langchain.schema import HumanMessage, AIMessage
 from dotenv import load_dotenv
+import os
 
+os.environ["OPENAI_API_KEY"] = ""
 
+def open_file(filepath):
+    with open(filepath, 'r', encoding='utf-8', errors='ignore') as infile:
+        return infile.read()
+    
 def make_chain():
     model = ChatOpenAI(
         model_name="gpt-3.5-turbo",
@@ -15,22 +21,21 @@ def make_chain():
     embedding = OpenAIEmbeddings()
 
     vector_store = Chroma(
-        collection_name="april-2023-economic",
+        collection_name="Debeka-Versicherungsumfang-Hausratversicherung",
         embedding_function=embedding,
         persist_directory="src/data/chroma",
     )
 
     return ConversationalRetrievalChain.from_llm(
         model,
-        retriever=vector_store.as_retriever(),
+        retriever=vector_store.as_retriever(search_type="similarity", search_kwargs={"k":3}),
         return_source_documents=True,
         # verbose=True,
     )
 
 
 if __name__ == "__main__":
-    load_dotenv()
-
+   
     chain = make_chain()
     chat_history = []
 
@@ -39,7 +44,7 @@ if __name__ == "__main__":
         question = input("Question: ")
 
         # Generate answer
-        response = chain({"question": question, "chat_history": chat_history})
+        response = chain({"context": open_file("src/system_profile.txt"), "question": question, "chat_history": chat_history})
 
         # Retrieve answer
         answer = response["answer"]
@@ -53,3 +58,4 @@ if __name__ == "__main__":
             print(f"Page: {document.metadata['page_number']}")
             print(f"Text chunk: {document.page_content[:160]}...\n")
         print(f"Answer: {answer}")
+        print(f"THIS IS THE HISTORY: {chat_history}")
